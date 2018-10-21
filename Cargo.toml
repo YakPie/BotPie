@@ -5,3 +5,5 @@ authors = ["Frank Lyder Bredland <fl@nyggen.com>"]
 
 [dependencies]
 irc = "0.13"
+chrono = "0.4.4"
+rusqlite = { version = "0.14.0", features = ["bundled", "chrono"]}

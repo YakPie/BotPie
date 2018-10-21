@@ -23,6 +23,10 @@ fn main() {
 		if let Command::PRIVMSG(channel, message) = message.command {
 			if message.contains("!repo") {
 				client.send_privmsg(&channel, "https://github.com/YakPie/BotPie").unwrap();
+			}
+
+			if message.contains("!schedule") {
+                client.send_privmsg(&channel, "Check out schedule over at https://yakpie.com/").unwrap();
 			}	
 
 			if message.contains(client.current_nickname()) {

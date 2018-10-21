@@ -18,8 +18,13 @@ fn main() {
     client.identify().unwrap();
 
     reactor.register_client_with_handler(client, |client, message| {
-        print!("{}", message);
+        print!("{}", message);			
+
 		if let Command::PRIVMSG(channel, message) = message.command {
+			if message.contains("!repo") {
+				client.send_privmsg(&channel, "https://github.com/YakPie/BotPie").unwrap();
+			}	
+
 			if message.contains(client.current_nickname()) {
 				client.send_privmsg(&channel, "beep boop").unwrap();
 			}

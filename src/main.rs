@@ -1,11 +1,14 @@
 extern crate irc;
 extern crate rusqlite;
 extern crate chrono;
+extern crate regex;
 
 use irc::client::prelude::*;
 use std::env;
 use rusqlite::Connection;
 use chrono::prelude::*;
+use std::string::String;
+use regex::Regex;
 
 fn main() {
     // IRC stup
@@ -34,33 +37,58 @@ fn main() {
         print!("{}", message);			
 
 		if let Command::PRIVMSG(channel, message) = message.command {
-            if message.contains("!help") {
+            if message.starts_with("!help") {
                 let mut stmt = conn.prepare("SELECT name FROM command").unwrap(); 
-				client.send_privmsg(&channel, "Help commands:").unwrap();
                 let command_iter = stmt.query_map(&[], |row| {
                     let name : String = row.get(0);
                     return name;
                 }).unwrap();
-                for command in command_iter {
-				    client.send_privmsg(&channel, command.unwrap()).unwrap();
+
+                let message = command_iter.fold(
+                    String::from("Help command: "),
+                    |acc, command| {
+                        let mut tmp_str = String::new();
+                        tmp_str.push_str(&acc);
+                        tmp_str.push_str(", ");
+                        tmp_str.push_str(&command.unwrap());
+                        tmp_str
+                    }
+                );
+                
+                client.send_privmsg(&channel, message).unwrap();
+            }
+            else if message.starts_with("!addcommand") {
+                let re = Regex::new("^!addcommand ([a-zA-Z0-9]+) (.*)").unwrap();
+                if let Some(cap) = re.captures_iter(&message).next() {
+                    let command_name = cap[1].to_string();
+                    let command_text = cap[2].to_string();
+
+                    conn.execute(
+                        "INSERT INTO command (name, text) VALUES (?1, ?2)",
+                        &[&command_name, &command_text]
+                    ).unwrap();
                 }
             }
-            else if message.contains("!addcommand") {
-                let utc: DateTime<Utc> = Utc::now();
-                conn.execute(
-                    "INSERT INTO command (name, text) VALUES (?1, ?2)",
-                    &[&"test".to_string(), &"test".to_string()]
-                ).unwrap();
-                print!("Tries to insert data into the database\n");
-            }
-            else if message.contains("!repo") {
+            else if message.starts_with("!repo") {
 				client.send_privmsg(&channel, "https://github.com/YakPie/BotPie").unwrap();
 			}
-            else if message.contains("!schedule") {
+            else if message.starts_with("!schedule") {
                 client.send_privmsg(&channel, "Check out schedule over at https://yakpie.com/").unwrap();
 			}
-            else if message.contains("!") {
-                // TODO: database lookup for command
+            else if message.starts_with("!") {
+                let re = Regex::new("^!([a-zA-Z0-9]+)").unwrap();
+                if let Some(cap) = re.captures_iter(&message).next() {
+                    let command_name = cap[1].to_string();
+                    let result : Result<String, rusqlite::Error> = conn.query_row(
+                        "SELECT text FROM command WHERE name=?1",
+                        &[ &command_name ],
+                        |row| row.get(0)
+                    );
+                    match result {
+                        Ok(command_text) => client.send_privmsg(&channel, command_text).unwrap(),
+                        _ => ()
+                    }
+                }
             }
             
 			if message.contains(client.current_nickname()) {

@@ -31,11 +31,20 @@ fn main() {
                   id              INTEGER PRIMARY KEY,
                   name            TEXT NOT NULL,
                   text            TEXT NOT NULL
-                  )", &[]).unwrap();  
+                  )", &[]).unwrap();
+
+    conn.execute(
+        "INSERT INTO command (name, text) VALUES (?1, ?2)",
+        &[ &"repo".to_string(), &"https://github.com/YakPie/BotPie".to_string() ] 
+    ).unwrap();
+
+    conn.execute(
+        "INSERT INTO command (name, text) VALUES (?1, ?2)",
+        &[ &"schedule".to_string(), &"Check out schedule over at https://yakpie.com/".to_string() ] 
+    ).unwrap();
 
     reactor.register_client_with_handler(client, move |client, orig_message| {
         print!("{}", orig_message);
-        //let source_nickname = orig_message.source_nickname();
 
 		if let Command::PRIVMSG(channel, message) = orig_message.command {
             if message.starts_with("!help") {
@@ -46,7 +55,7 @@ fn main() {
                 }).unwrap();
 
                 let message = command_iter.fold(
-                    String::from("Help command: "),
+                    String::from("Help command: help, addcommand, delcommand"),
                     |acc, command| {
                         let mut tmp_str = String::new();
                         tmp_str.push_str(&acc);
@@ -68,26 +77,23 @@ fn main() {
                         "INSERT INTO command (name, text) VALUES (?1, ?2)",
                         &[&command_name, &command_text]
                     ).unwrap();
+
+                    client.send_privmsg(&channel, "Command was added").unwrap();
                 }
             }
-            else if message.starts_with("!repo") {
-                /*if let Some(nickname) = source_nickname {
-                    let url = "https://github.com/YakPie/BotPie";
-                    let mut message = String::new();
-                    message.push('@');
-                    message.push_str(&nickname);
-                    message.push(' ');
-                    message.push_str(&url);
+            else if message.starts_with("!delcommand") {
+                let re = Regex::new("^!delcommand ([a-zA-Z0-9]+)").unwrap();
+                if let Some(cap) = re.captures_iter(&message).next() {
+                    let command_name = cap[1].to_string();
 
-				    client.send_privmsg(&channel, message).unwrap();
-                } else {
-                // */
-				    client.send_privmsg(&channel, "https://github.com/YakPie/BotPie").unwrap();
-                //}
-			}
-            else if message.starts_with("!schedule") {
-                client.send_privmsg(&channel, "Check out schedule over at https://yakpie.com/").unwrap();
-			}
+                    conn.execute(
+                        "DELETE FROM command WHERE name=?1",
+                        &[&command_name]
+                    ).unwrap();
+
+                    client.send_privmsg(&channel, "Command was deleted").unwrap();
+                }
+            }
             else if message.starts_with("!") {
                 let re = Regex::new("^!([a-zA-Z0-9]+)").unwrap();
                 if let Some(cap) = re.captures_iter(&message).next() {

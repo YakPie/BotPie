@@ -6,7 +6,7 @@ extern crate regex;
 use irc::client::prelude::*;
 use std::env;
 use rusqlite::Connection;
-use chrono::prelude::*;
+//use chrono::prelude::*;
 use std::string::String;
 use regex::Regex;
 
@@ -33,10 +33,11 @@ fn main() {
                   text            TEXT NOT NULL
                   )", &[]).unwrap();  
 
-    reactor.register_client_with_handler(client, move |client, message| {
-        print!("{}", message);			
+    reactor.register_client_with_handler(client, move |client, orig_message| {
+        print!("{}", orig_message);
+        //let source_nickname = orig_message.source_nickname();
 
-		if let Command::PRIVMSG(channel, message) = message.command {
+		if let Command::PRIVMSG(channel, message) = orig_message.command {
             if message.starts_with("!help") {
                 let mut stmt = conn.prepare("SELECT name FROM command").unwrap(); 
                 let command_iter = stmt.query_map(&[], |row| {
@@ -70,7 +71,19 @@ fn main() {
                 }
             }
             else if message.starts_with("!repo") {
-				client.send_privmsg(&channel, "https://github.com/YakPie/BotPie").unwrap();
+                /*if let Some(nickname) = source_nickname {
+                    let url = "https://github.com/YakPie/BotPie";
+                    let mut message = String::new();
+                    message.push('@');
+                    message.push_str(&nickname);
+                    message.push(' ');
+                    message.push_str(&url);
+
+				    client.send_privmsg(&channel, message).unwrap();
+                } else {
+                // */
+				    client.send_privmsg(&channel, "https://github.com/YakPie/BotPie").unwrap();
+                //}
 			}
             else if message.starts_with("!schedule") {
                 client.send_privmsg(&channel, "Check out schedule over at https://yakpie.com/").unwrap();
